@@ -1,0 +1,98 @@
+# Workspace manifest for the isaac_ros-dev active-SLAM stack.
+#
+#   vcs import src < isaac_ros-dev.repos
+#   vcs status  src
+#   vcs pull    src
+#
+# Rationale: the active-SLAM work spans three separate git repos
+# (open_vins + active_slam_msgs + active_slam_planner) because `src/` is not
+# itself a repo and there is no umbrella. This file makes that set
+# reproducible without restructuring the tree.
+#
+# =====================================================================
+# !! THREE ENTRIES ARE NOT YET IMPORTABLE - see NEEDS REMOTE below !!
+# A fresh `vcs import` will fail on them until the remotes exist.
+# =====================================================================
+
+repositories:
+
+  # ---------- NVIDIA Isaac ROS (forked) ----------
+  isaac_ros_common:
+    type: git
+    url: git@github.com:ssaigarimella/isaac_ros_common.git
+    version: buckshee-dev          # b00726a
+
+  isaac_ros_nvblox:
+    type: git
+    url: git@github.com:ssaigarimella/isaac_ros_nvblox.git
+    version: prometheus-dev        # 6b9a22d
+    # NOTE: has a nested submodule (nvblox_ros/nvblox_core); vcs does not
+    # recurse submodules by default -- run `git submodule update --init
+    # --recursive` inside this repo after import.
+
+  isaac_ros_visual_slam:
+    type: git
+    url: git@github.com:ssaigarimella/isaac_ros_visual_slam.git
+    version: buckshee-dev          # 4c7b976
+
+  realsense-ros:
+    type: git
+    url: git@github.com:ssaigarimella/realsense-ros.git
+    version: buckshee-dev          # 2a65533e
+
+  # ---------- our packages ----------
+  multi_drone_nvblox:
+    type: git
+    url: git@github.com:ssaigarimella/multi_drone_nvblox.git
+    version: juggernaut-dev        # c213ec6
+    # Production cuVSLAM path. The active-SLAM work does not modify this.
+
+  open_vins:
+    type: git
+    # NEEDS REMOTE: `openvins-integration` exists ONLY locally. The url below
+    # is upstream rpng, which does NOT have this branch. Push a fork and change
+    # this url to it, e.g. git@github.com:ssaigarimella/open_vins.git
+    url: https://github.com/rpng/open_vins.git
+    version: openvins-integration  # 9a14e50 - LOCAL ONLY, NOT PUSHED
+
+  active_slam_msgs:
+    type: git
+    # NEEDS REMOTE: repo is local-only, never pushed. Create it, then set url.
+    url: git@github.com:ssaigarimella/active_slam_msgs.git
+    version: openvins-integration  # a0790aa - LOCAL ONLY, NOT PUSHED
+
+  active_slam_planner:
+    type: git
+    # NEEDS REMOTE: repo is local-only, never pushed. Create it, then set url.
+    url: git@github.com:ssaigarimella/active_slam_planner.git
+    version: openvins-integration  # 25f1eb3 - LOCAL ONLY, NOT PUSHED
+
+  # ---------- PX4 (Stage 4 prerequisite) ----------
+  px4_msgs:
+    type: git
+    url: https://github.com/PX4/px4_msgs.git
+    # !! PIN THIS TO YOUR FIRMWARE VERSION !!
+    # px4_msgs message definitions change between PX4 releases. A mismatch
+    # against the firmware does NOT error -- it silently deserializes garbage,
+    # which on a VIO feed means the EKF2 fuses nonsense. Available release
+    # branches: release/1.13 .. release/1.18.
+    # 1.15 is a provisional default for a ROS 2 Humble / uXRCE-DDS setup and
+    # has NOT been confirmed against the actual flight controller.
+    version: release/1.15
+
+# ---------------------------------------------------------------------
+# Build ordering note (see ov_msckf/package.xml):
+# ov_msckf deliberately does NOT declare active_slam_msgs as a dependency, so
+# that a broken active_slam_msgs cannot take down the VIO build. The cost is
+# that colcon has no ordering constraint between them. On a clean workspace,
+# build active_slam_msgs first (or just build twice) or the
+# /openvins/joint_covariance publisher will be silently compiled out. CMake
+# prints ENABLED/DISABLED at configure time and the node warns at runtime.
+#
+#   colcon build --packages-select active_slam_msgs
+#   colcon build
+#
+# ov_msckf also needs -DBoost_DIR=/usr/lib/cmake/Boost-1.80.0 on this image to
+# dodge the Boost 1.80-headers / 1.74-libs mismatch (undefined reference to
+# boost::filesystem::path::find_parent_path_size).
+# ---------------------------------------------------------------------
