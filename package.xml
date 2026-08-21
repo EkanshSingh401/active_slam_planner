@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>active_slam_planner</name>
+  <version>0.1.0</version>
+  <description>
+    Fisher-information-based active SLAM planning pipeline (SCAFFOLD).
+    Interfaces are real; the estimation, selection and trajectory algorithms
+    are explicitly marked placeholders pending the real formulations.
+    Also hosts the OpenVINS -> PX4 visual odometry bridge, whose frame
+    conversion is real and unit-tested but whose publish path is disabled
+    by default.
+  </description>
+  <maintainer email="sgarimella34@gatech.edu">ssaigarimella</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>active_slam_msgs</exec_depend>
+  <!-- px4_msgs is intentionally NOT a hard dependency: openvins_to_px4 imports
+       it lazily and stays inert if absent, so this package builds and runs on
+       a machine with no PX4 stack at all. -->
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
