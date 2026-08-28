@@ -20,6 +20,11 @@
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>active_slam_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <!-- demo.launch.py bringup only; the planner nodes need none of these. -->
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>nvblox_rviz_plugin</exec_depend>
   <!-- px4_msgs is intentionally NOT a hard dependency: openvins_to_px4 imports
        it lazily and stays inert if absent, so this package builds and runs on
        a machine with no PX4 stack at all. -->

@@ -1,0 +1,382 @@
+# RViz2 config for the live active-SLAM demo: OpenVINS VIO + nvblox mapping +
+# joint-covariance visualization.
+#
+# Fixed frame is `odom`, which is nvblox's global_frame. OpenVINS publishes its
+# own pose topics in frame `global`; demo.launch.py publishes a static identity
+# odom->global so both trees resolve against one fixed frame. Without that
+# static TF, /pathimu and the uncertainty markers show "frame does not exist".
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /nvblox1
+        - /OpenVINS1
+        - /Uncertainty1
+      Splitter Ratio: 0.5
+    Tree Height: 700
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Background Color: 38; 38; 40
+    Fixed Frame: odom
+    Frame Rate: 30
+  Displays:
+    - Alpha: 0.30000001192092896
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 130; 130; 140
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 20
+      Reference Frame: <Fixed Frame>
+      Value: true
+
+    # The TF tree. Names are off by default -- the RealSense driver alone
+    # contributes ~10 frames and the labels bury the mesh. Turn "Show Names"
+    # on when debugging the odom->global->imu / odom->camera_link join.
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+      Marker Scale: 0.30000001192092896
+      Name: TF
+      Show Arrows: false
+      Show Axes: true
+      Show Names: false
+      Tree:
+        {}
+      Update Interval: 0
+      Value: true
+
+    - Class: rviz_common/Group
+      Displays:
+        - Class: nvblox_rviz_plugin/NvbloxMesh
+          Enabled: true
+          Name: Mesh
+          Topic:
+            Depth: 10000
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep All
+            Reliability Policy: Reliable
+            Value: /nvblox_node/mesh
+          Value: true
+
+        # 2D ESDF slice. "intensity" is the distance-to-obstacle field
+        # (see nvblox pointcloud_conversions.hpp), so rainbow reads
+        # red = close to an obstacle, blue = open space.
+        - Alpha: 1
+          Autocompute Intensity Bounds: false
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: Intensity
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: true
+          Max Color: 255; 255; 255
+          Max Intensity: 2
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: ESDF Slice
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.05000000074505806
+          Style: Boxes
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/static_esdf_pointcloud
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+
+        - Class: rviz_default_plugins/Marker
+          Enabled: false
+          Name: ESDF Slice Bounds
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/esdf_slice_bounds
+          Value: false
+      Enabled: true
+      Name: nvblox
+
+    - Class: rviz_common/Group
+      Displays:
+        # OpenVINS publishes this itself (ROS2Visualizer::pub_pathimu) -- no
+        # accumulator node needed. Frame is `global`.
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz_default_plugins/Path
+          Color: 0; 255; 130
+          Enabled: true
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Length: 0.30000001192092896
+          Line Style: Lines
+          Line Width: 0.029999999329447746
+          Name: VIO Trajectory
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 255; 85; 255
+          Pose Style: None
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 0.10000000149011612
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /pathimu
+          Value: true
+
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz_default_plugins/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: false
+          Enabled: true
+          Keep: 1
+          Name: Current Pose
+          Position Tolerance: 0.10000000149011612
+          Shape:
+            Alpha: 1
+            Axes Length: 0.30000001192092896
+            Axes Radius: 0.02500000037252903
+            Color: 255; 25; 0
+            Head Length: 0.30000001192092896
+            Head Radius: 0.10000000149011612
+            Shaft Length: 1
+            Shaft Radius: 0.05000000074505806
+            Value: Axes
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /odomimu
+          Value: true
+
+        # SLAM landmarks, already triangulated to global XYZ by OpenVINS.
+        # NOTE these carry no ids, which is one of the two reasons
+        # covariance_viz draws no per-landmark ellipsoids -- there is no way to
+        # match a 3x3 covariance block to a point here.
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 0; 220; 255
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Min Color: 0; 0; 0
+          Name: SLAM Landmarks
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 6
+          Size (m): 0.05000000074505806
+          Style: Points
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /points_slam
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 255; 200; 0
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: false
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Min Color: 0; 0; 0
+          Name: MSCKF Features
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 4
+          Size (m): 0.05000000074505806
+          Style: Points
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /points_msckf
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: false
+      Enabled: true
+      Name: OpenVINS
+
+    - Class: rviz_common/Group
+      Displays:
+        # 1-sigma position ellipsoid from the IMU block of the joint
+        # covariance. EXAGGERATED by covariance_viz's sigma_scale parameter
+        # (default 50x) -- the raw millimetre-scale numbers are in the text
+        # marker and on the Float64 topics.
+        - Class: rviz_default_plugins/Marker
+          Enabled: true
+          Name: Position Uncertainty (scaled)
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /covariance_viz/uncertainty_ellipsoid
+          Value: true
+
+        - Class: rviz_default_plugins/Marker
+          Enabled: true
+          Name: Uncertainty Readout
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /covariance_viz/uncertainty_text
+          Value: true
+      Enabled: true
+      Name: Uncertainty
+
+    # OpenVINS feature-track overlay (ROS2Visualizer::publish_images).
+    # It is gated on subscriber count, so it only starts publishing once this
+    # display is enabled. Best Effort so it is compatible either way.
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Tracked Features
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /trackhist
+      Value: true
+
+  Enabled: true
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 7
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: false
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.5
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 2.3
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1000
+  Hide Left Dock: false
+  Hide Right Dock: true
+  Selection:
+    collapsed: false
+  Tracked Features:
+    collapsed: false
+  Views:
+    collapsed: true
+  Width: 1800
+  X: 60
+  Y: 40

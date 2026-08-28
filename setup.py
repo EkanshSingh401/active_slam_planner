@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml', 'README.md']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,6 +27,7 @@ setup(
             'viewpoint_selector = active_slam_planner.viewpoint_selector:main',
             'trajectory_generator = active_slam_planner.trajectory_generator:main',
             'openvins_to_px4 = active_slam_planner.openvins_to_px4:main',
+            'covariance_viz = active_slam_planner.covariance_viz:main',
         ],
     },
 )
