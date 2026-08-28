@@ -107,7 +107,7 @@ Visualization Manager:
           Max Intensity: 2
           Min Color: 0; 0; 0
           Min Intensity: 0
-          Name: ESDF Slice
+          Name: ESDF 2D slice (planner input)
           Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
@@ -126,7 +126,7 @@ Visualization Manager:
 
         - Class: rviz_default_plugins/Marker
           Enabled: false
-          Name: ESDF Slice Bounds
+          Name: ESDF 2D slice bounds
           Namespaces:
             {}
           Topic:
@@ -136,6 +136,152 @@ Visualization Manager:
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /nvblox_node/esdf_slice_bounds
+          Value: false
+
+        # ------------------------------------------------------------------
+        # VOLUMETRIC VOXEL VIEWS -- all ship DISABLED on purpose.
+        #
+        # These are dense and will bury the mesh, which is the readable view
+        # for figures. Tick one on for inspection, then tick it back off.
+        #
+        # nvblox gates every one of these publishers on subscriber count, so
+        # while they are unticked they cost nothing at all -- nvblox does not
+        # even serialize the messages.
+        #
+        # NOTE there is no 3D ESDF pointcloud topic in this build. In
+        # `esdf_mode: 3d` the 3D ESDF is exposed as the EsdfAndGradients
+        # *service*, not a topic, and nvblox_node.cpp gates the whole
+        # static_esdf_pointcloud publish path on `esdf_mode == k2D` -- so
+        # switching to 3d would DELETE the 2D slice above, which the planner
+        # consumes. Left at 2d deliberately.
+        # ------------------------------------------------------------------
+
+        # The real volumetric view: per-voxel blocks, drawn by the nvblox
+        # plugin. "Cut Ceiling" is the useful knob -- turn it on and lower
+        # "Ceiling Height" to slice into an enclosed room from above.
+        - Ceiling Height: 2.5
+          Class: nvblox_rviz_plugin/NvbloxVoxelBlockLayer
+          Cut Ceiling: false
+          Enabled: false
+          Name: TSDF voxels 3D (VoxelBlockLayer)
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep All
+            Reliability Policy: Reliable
+            Value: /nvblox_node/tsdf_layer
+          Value: false
+
+        - Ceiling Height: 2.5
+          Class: nvblox_rviz_plugin/NvbloxVoxelBlockLayer
+          Cut Ceiling: false
+          Enabled: false
+          Name: Color voxels 3D (VoxelBlockLayer)
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep All
+            Reliability Policy: Reliable
+            Value: /nvblox_node/color_layer
+          Value: false
+
+        # Same voxel data as a plain CUBE_LIST Marker (layer_publishing.cpp
+        # builds these). Useful if the plugin ever fails to load, or in a
+        # viewer without nvblox_rviz_plugin installed. Slower than the plugin
+        # -- prefer the VoxelBlockLayer displays above.
+        - Class: rviz_default_plugins/Marker
+          Enabled: false
+          Name: TSDF voxels 3D (Marker fallback)
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/tsdf_layer_marker
+          Value: false
+
+        - Class: rviz_default_plugins/Marker
+          Enabled: false
+          Name: Color voxels 3D (Marker fallback)
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/color_layer_marker
+          Value: false
+
+        # 2D, NOT voxels: the occupancy layer flattened to a nav_msgs grid.
+        # Durability MUST be Volatile -- nvblox publishes this Volatile, and
+        # the Map display defaults to Transient Local, which is an
+        # incompatible QoS pairing and silently receives nothing.
+        - Alpha: 0.699999988079071
+          Class: rviz_default_plugins/Map
+          Color Scheme: map
+          Draw Behind: false
+          Enabled: false
+          Name: Occupancy 2D projected grid
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/static_occupancy_grid
+          Update Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/static_occupancy_grid_updates
+          Use Timestamp: false
+          Value: false
+
+        # Raw per-frame depth back-projection, straight off the sensor and
+        # NOT the fused map -- handy for checking depth against the mesh.
+        # "Use Fixed Frame: false" + Axis Z colours by distance along the
+        # optical axis, i.e. by depth. Publishes only while depth frames are
+        # actively being integrated (subscriber-gated, subsampling=1), so a
+        # dead-static camera yields nothing.
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 7
+            Min Value: 0
+            Value: false
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: false
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Min Color: 0; 0; 0
+          Name: Depth back-projection (raw, not fused)
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 2
+          Size (m): 0.019999999552965164
+          Style: Points
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /nvblox_node/back_projected_depth/camera_depth_optical_frame
+          Use Fixed Frame: false
+          Use rainbow: true
           Value: false
       Enabled: true
       Name: nvblox
