@@ -1,147 +1,148 @@
 # Eigenspectrum diagnostic — results
 
-Run recorded 2026-09-04 on prometheus (Jetson Orin NX), D455 stereo + IMU,
+Recorded 2026-09-04 on prometheus (Jetson Orin NX), D455 stereo + IMU,
 `open_vins` branch `openvins-integration`, config `rs_d455`.
 
 Numbers only. No conclusion is drawn here about which planning criterion to use.
 
-## Run conditions
+## Two runs
 
-| | |
-|---|---|
-| samples | 292 over 60.4 s (5 Hz publisher) |
-| timesteps analysed | 25, evenly spaced across the run |
-| dim | 85 … 217 |
-| SLAM features | 1 … 45 (**mean 4.9**) |
-| \|p\| | 0.014 … 0.052 m — **bounded** |
-| IR rate | 30.0 Hz (header period 33.3 ms) |
-| OpenVINS lag | ~1.2 ms (real-time, not CPU-starved) |
-| rank tolerance | `lambda_max * 1e-12` |
+| | `moving_camera` (**primary**) | `static_camera` (corroborating) |
+|---|---|---|
+| samples | 439 over 90.8 s | 292 over 60.4 s |
+| timesteps analysed | 25 | 25 |
+| dim | 208 … 220 | 85 … 217 |
+| SLAM features | **42 … 46 (mean 43.1)** | 1 … 45 (mean 4.9) |
+| \|p\| | 0.234 … 0.238 m — bounded | 0.014 … 0.052 m — bounded |
+| IR | 30.0 Hz (33.3 ms) | 30.0 Hz (33.3 ms) |
+| OpenVINS lag | ~1.6 ms (real-time) | ~1.2 ms (real-time) |
 
-**Caveat on feature count.** The recording armed at 45 SLAM features but the
-camera was static for most of the 60 s, and OpenVINS marginalises SLAM features
-it cannot triangulate without parallax, so the population fell to 2 and the
-mean over the run is 4.9 rather than the 25+ requested. The feature-dependent
-rows (`SLAM feats only`, `IMU + feats`) are therefore computed on a small block
-for most timesteps. **The headline result is unaffected** — the rank deficit is
-exactly 6 at every timestep from dim 88 to dim 205 and from 2 features to 41,
-i.e. it is independent of how many features are in the state. A re-record while
-the camera is moving would tighten the feature-block numbers only.
+The static run's feature population collapsed 45 → 2 within ~10 s: with no
+parallax OpenVINS marginalises SLAM features it cannot triangulate. It is kept
+because **every structural result below is identical across the two runs**,
+across dim 85→220 and 2→46 features, which is itself the strongest evidence
+that the finding is structural rather than data-dependent.
+
+All figures below are from `moving_camera` unless stated.
 
 ## Per-block spectrum (mean over 25 timesteps)
 
 | block | dim | cond (eig) | rank | deficit | lambda_min | Cholesky |
 |---|---|---|---|---|---|---|
-| FULL joint | 88–205 | **inf** | 82–199 | **6** | −3.67e−18 | **0/25** |
-| IMU (15) | 15 | 9.07e5 | 15 | 0 | 3.21e−09 | 25/25, cond(C) 9.41e2 |
-| calib_dt (1) | 1 | 1.00 | 1 | 0 | 1.68e−08 | 25/25, cond(C) 1.00 |
-| clones only | 66 | 6.34e9 | 66 | 0 | 4.62e−12 | 25/25, cond(C) 7.92e4 |
-| SLAM feats only | 6–123 | 9.00e4 | 6–123 | 0 | 7.86e−08 | 25/25, cond(C) 2.12e2 |
-| IMU + feats | 21–138 | 1.93e6 | 21–138 | 0 | 3.21e−09 | 25/25, cond(C) 1.20e3 |
-| IMU + clones | 81 | **inf** | 75–76 | **5–6** | −3.03e−18 | 3/25 |
-| IMU+clones+feats | 87–204 | **inf** | 81–199 | **5–6** | −3.21e−18 | 5/25 |
-| FULL minus calib | 87–204 | **inf** | 81–199 | **5–6** | −3.21e−18 | 5/25 |
+| FULL joint | 208–220 | **inf** | 202–214 | **6** | −4.26e−18 | **0/25** |
+| IMU (15) | 15 | 1.01e6 | 15 | 0 | 2.61e−09 | 25/25, cond(C) 1.00e3 |
+| calib_dt (1) | 1 | 1.00 | 1 | 0 | 7.86e−09 | 25/25, cond(C) 1.00 |
+| clones only | 66 | 6.70e9 | 66 | 0 | 4.25e−12 | 25/25, cond(C) 8.17e4 |
+| SLAM feats only | 126–138 | 2.21e5 | 126–138 | 0 | 3.12e−09 | 25/25, cond(C) 4.64e2 |
+| IMU + feats | 141–153 | 1.43e6 | 141–153 | 0 | 2.12e−09 | 25/25, cond(C) 1.17e3 |
+| IMU + clones | 81 | **inf** | 75–76 | **5–6** | −3.59e−18 | 1/25 |
+| IMU+clones+feats | 207–219 | 1.34e17* | 201–213 | **5–6** | −3.28e−18 | 2/25 |
+| FULL minus calib | 207–219 | 1.34e17* | 201–213 | **5–6** | −3.28e−18 | 2/25 |
 
-Full-matrix SVD condition number ranged **1.7e17 … 1.6e20** across the run
-(consistent with the previously measured 5.6e17). `lambda_min` is *negative*,
-around −1e−18, so the eigenvalue ratio is meaningless and the matrix is not
-positive semidefinite to working precision.
+`*` finite at only the 2/25 timesteps that were PD; averaged over those.
+
+Full-matrix SVD condition number ranged **1e17 … 4e18**, consistent with the
+previously measured 5.6e17. `lambda_min` is *negative*, so the matrix is not
+PSD to working precision and the eigenvalue ratio is undefined.
 
 ## Where the degeneracy lives
 
-Near-null eigenvectors (6.0 of ~99 dims), energy by block type:
+Near-null eigenvectors — 6.0 of 211 dims — energy by block type:
 
-| block type | mean share |
+| block type | share |
 |---|---|
-| clone | 49.9 % |
-| imu | 49.9 % |
-| calib_dt | 0.2 % |
-| slam_feature | **0.0 %** |
+| clone | **50.00 %** |
+| imu | **50.00 %** |
+| calib_dt | 0.00 % |
+| slam_feature | **0.00 %** |
 
-Resolving the imu/clone split further:
+Resolving the imu/clone split:
 
-| component | share of null energy |
+| component | share |
 |---|---|
-| IMU pose (quat, pos) | 49.92 % |
+| IMU pose (quat, pos) | **50.00 %** |
 | IMU vel / gyro-bias / accel-bias | 0.00 % |
-| newest clone | 49.92 % |
+| **newest clone** | **50.00 %** |
 | all older clones | 0.00 % |
-| **IMU pose + newest clone** | **99.85 %** |
+| **IMU pose + newest clone** | **100.00 %** |
 
-`<v_imu_pose, v_newest_clone> = −0.4992` and the newest clone's age is
-`+0.0000 s`.
+`<v_imu_pose, v_newest_clone> = −0.5000`, newest-clone age `+0.0000 s`.
 
-An inner product of exactly −0.5 between two unit-norm 6-vectors is the
-signature of the pairing `v = (u, −u)/sqrt(2)`. Combined with a clone age of
-zero, this says the six near-null directions **are the difference between the
-IMU pose and the most recent clone** — which OpenVINS creates as a bit-exact
-copy of the current IMU pose. The degeneracy is structural and exactly
-predictable, not an estimation pathology, and it does not involve the
-velocity/bias states, the older clones, or the map at all.
+An inner product of exactly −0.5 between unit-norm 6-vectors is the signature
+of the pairing `v = (u, −u)/sqrt(2)`. With a clone age of zero this says the six
+near-null directions **are `IMU_pose − newest_clone`** — identically zero,
+because OpenVINS creates each clone as a bit-exact copy of the current IMU
+pose. The degeneracy is structural and exactly predictable. It involves neither
+the velocity/bias states, the older clones, nor the map.
+
+(`static_camera` gives 99.85 % and −0.4992 — the same result, marginally
+noisier because some sampled timesteps caught a clone mid-update.)
+
+## Corroboration from the submatrix table
+
+Every block set that **fails** Cholesky contains **both** the IMU and the clone
+block. Every set that **succeeds 25/25** contains at most one of them:
+
+| succeeds 25/25 | cond | | fails | Cholesky |
+|---|---|---|---|---|
+| calib_dt | 1.00 | | FULL joint | 0/25 |
+| SLAM feats only | 2.21e5 | | IMU + clones | 1/25 |
+| IMU (15) | 1.01e6 | | IMU+clones+feats | 2/25 |
+| IMU + feats | 1.43e6 | | FULL minus calib | 2/25 |
+| clones only | 6.70e9 | | | |
 
 ## Clone conditioning vs sliding-window length
 
 | #clones | dim | span (s) | cond | rank | deficit | lambda_min | Cholesky |
 |---|---|---|---|---|---|---|---|
-| 2 | 12 | 0.06 | 6.15e6 | 12 | 0 | 1.17e−09 | 25/25 |
-| 4 | 24 | 0.14 | 8.81e8 | 24 | 0 | 1.49e−11 | 25/25 |
-| 6 | 36 | 0.22 | 2.47e9 | 36 | 0 | 6.61e−12 | 25/25 |
-| 8 | 48 | 0.30 | 4.08e9 | 48 | 0 | 5.26e−12 | 25/25 |
-| 11 | 66 | 0.43 | 6.34e9 | 66 | 0 | 4.62e−12 | 25/25 |
+| 2 | 12 | 0.05 | 1.24e7 | 12 | 0 | 6.32e−10 | 25/25 |
+| 4 | 24 | 0.13 | 8.65e8 | 24 | 0 | 1.46e−11 | 25/25 |
+| 6 | 36 | 0.22 | 2.48e9 | 36 | 0 | 7.07e−12 | 25/25 |
+| 8 | 48 | 0.31 | 4.06e9 | 48 | 0 | 5.60e−12 | 25/25 |
+| 11 | 66 | 0.42 | 6.70e9 | 66 | 0 | 4.25e−12 | 25/25 |
 
-Conditioning degrades ~1000x from a 2-clone to an 11-clone window (0.06 s to
-0.43 s), consistent with consecutive poses over the window being increasingly
+Conditioning degrades ~540x from a 2-clone (0.05 s) to an 11-clone (0.42 s)
+window, consistent with consecutive poses over the window being increasingly
 near-linearly-dependent. **Rank stays full at every window length** — this is
-ill-conditioning, not rank deficiency.
+ill-conditioning with window span, not rank deficiency.
 
 ## Cholesky factor vs sqrt(matrix condition)
 
 | block | cond(A) | sqrt(cond A) | cond(C) measured | ratio |
 |---|---|---|---|---|
-| IMU (15) | 9.07e5 | 9.52e2 | 9.41e2 | 0.99 |
+| IMU (15) | 1.01e6 | 1.01e3 | 1.00e3 | 1.00 |
 | calib_dt (1) | 1.00 | 1.00 | 1.00 | 1.00 |
-| clones only | 6.34e9 | 7.96e4 | 7.92e4 | 0.99 |
-| SLAM feats only | 9.00e4 | 3.00e2 | 2.12e2 | 0.71 |
-| IMU + feats | 1.93e6 | 1.39e3 | 1.20e3 | 0.86 |
+| clones only | 6.70e9 | 8.19e4 | 8.17e4 | 1.00 |
+| SLAM feats only | 2.21e5 | 4.70e2 | 4.64e2 | 0.99 |
+| IMU + feats | 1.43e6 | 1.20e3 | 1.17e3 | 0.98 |
+| IMU+clones+feats | 1.34e17 | 3.66e8 | 1.21e10 | **33.13** |
 
-`cond(C) ~ sqrt(cond(A))` holds on every block where Cholesky succeeds.
+`cond(C) ~ sqrt(cond(A))` holds to within 2 % on every well-conditioned block.
+It breaks down (ratio 33) only on `IMU+clones+feats`, which is barely PD at the
+2/25 timesteps where Cholesky succeeded at all — the relation assumes a
+comfortably positive-definite matrix.
 
 ## Log-det numerical viability (statement of fact)
 
-A log-det is numerically meaningful only where the matrix is positive definite
-with a condition number well inside double precision (~1e16).
+Meaningful only where the matrix is PD with condition number well inside double
+precision (~1e16).
 
-**Well-posed** (PD at 25/25 timesteps):
+**Well-posed** — PD at 25/25 timesteps: `calib_dt` (1.00), `SLAM feats only`
+(2.21e5), `IMU (15)` (1.01e6), `IMU + feats` (1.43e6), `clones only` (6.70e9).
 
-| block | cond |
-|---|---|
-| IMU (15) | 9.07e5 |
-| calib_dt (1) | 1.00 |
-| SLAM feats only | 9.00e4 |
-| IMU + feats | 1.93e6 |
-| clones only | 6.34e9 |
-
-**Not viable** (not PD; Cholesky fails at most or all timesteps):
-
-| block | Cholesky |
-|---|---|
-| FULL joint | 0/25 |
-| IMU + clones | 3/25 |
-| IMU + clones + feats | 5/25 |
-| FULL minus calib | 5/25 |
-
-Every failing set is exactly a set that contains **both** the IMU block and the
-clone block. Every succeeding set contains at most one of them.
+**Not viable** — not PD: `FULL joint` (0/25), `IMU + clones` (1/25),
+`IMU+clones+feats` (2/25), `FULL minus calib` (2/25).
 
 ## Reproduce
 
 ```bash
 cd analysis
-python3 test_eigen_diagnostic.py                 # offline self-test, no hardware
-python3 record_joint_covariance.py --seconds 60 --wait-features 25 \
-        --out results/joint_cov_run.pkl
-python3 eigen_diagnostic.py --in results/joint_cov_run.pkl --outdir results
+python3 test_eigen_diagnostic.py                  # offline self-test, no hardware
+python3 record_joint_covariance.py --seconds 90 --wait-features 25 \
+        --out results/joint_cov_moving.pkl        # camera must be MOVING
+python3 eigen_diagnostic.py --in results/joint_cov_moving.pkl \
+        --outdir results/moving_camera
 ```
 
-Raw `.pkl` (23 MB) is gitignored; `eigen_report.txt`, `eigen_results.json` and
-`eigen_condition_vs_time.png` are committed.
+Raw `.pkl` files are gitignored; the report, JSON and figure for each run are
+committed under `results/moving_camera/` and `results/static_camera/`.
