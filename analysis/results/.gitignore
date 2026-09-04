@@ -1,0 +1,3 @@
+# Recorded covariance logs are large and machine-specific; keep the derived
+# report/json/plot, not the raw pickle.
+*.pkl
