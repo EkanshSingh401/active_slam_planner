@@ -145,6 +145,49 @@ def null_energy_by_block(sample):
     return dict(n_null=int(null.size), dim=int(cov.shape[0]), share=share)
 
 
+def pose_duplication_check(sample):
+    """Is the null space exactly the IMU-pose / newest-clone duplication?
+
+    OpenVINS clones the current IMU pose into the sliding window. A freshly
+    created clone is a bit-exact copy of the IMU pose, so the joint covariance
+    contains 6 exactly linearly dependent directions (3 orientation, 3
+    position) of the form (u, -u)/sqrt(2) spanning IMU_pose and that clone.
+
+    This resolves the "clone 50% / imu 50%" split from null_energy_by_block
+    into a specific, structurally predictable degeneracy rather than an
+    estimation pathology. Signature of the hypothesis holding:
+      * energy concentrated in IMU[0:6] + newest clone, ~50/50
+      * ~0 energy in IMU[6:15] (vel, gyro bias, accel bias) and older clones
+      * <v_imu_pose, v_newest_clone> = -0.5 exactly, at unit norm
+    """
+    cov = sym(sample["cov"])
+    ev, V = np.linalg.eigh(cov)
+    null = np.where(ev <= abs(ev[-1]) * RTOL)[0]
+    imu = next((b for b in sample["blocks"] if b["type"] == "imu"), None)
+    clones = sorted(blocks_of(sample, "clone"), key=lambda b: b["clone_timestamp"])
+    if null.size == 0 or imu is None or not clones:
+        return None
+    newest, older = clones[-1], clones[:-1]
+    ip = np.arange(imu["index"], imu["index"] + 6)         # quat(3) + pos(3)
+    ir = np.arange(imu["index"] + 6, imu["index"] + 15)    # vel, bg, ba
+    cn = np.arange(newest["index"], newest["index"] + 6)
+    co = np.array([j for b in older for j in range(b["index"], b["index"] + b["size"])],
+                  dtype=int)
+
+    def energy(idx):
+        if len(idx) == 0:
+            return 0.0
+        return float((V[idx][:, null] ** 2).sum() / null.size)
+
+    return dict(
+        n_null=int(null.size),
+        imu_pose=energy(ip), imu_vel_bias=energy(ir),
+        newest_clone=energy(cn), older_clones=energy(co),
+        inner=float(np.mean([np.dot(V[ip, k], V[cn, k]) for k in null])),
+        newest_clone_age_s=float(newest["clone_timestamp"] - sample["stamp"]),
+    )
+
+
 def clone_window_sweep(sample, counts=(2, 4, 6, 8, 11)):
     """Conditioning of the clone block vs how many clones are included.
 
@@ -174,6 +217,7 @@ def analyse(samples, n_steps):
     per_block = defaultdict(list)
     per_chol = defaultdict(list)
     null_rows = []
+    dup_rows = []
     sweep_rows = []
     timeline = []
 
@@ -190,6 +234,9 @@ def analyse(samples, n_steps):
         ne = null_energy_by_block(s)
         if ne:
             null_rows.append(ne)
+        pd_ = pose_duplication_check(s)
+        if pd_:
+            dup_rows.append(pd_)
         sweep_rows.append(clone_window_sweep(s))
         full = spectrum(cov)
         timeline.append(dict(
@@ -198,7 +245,7 @@ def analyse(samples, n_steps):
             lmin=full["lmin"], lmax=full["lmax"], rank=full["rank"],
             deficit=full["rank_deficit"],
         ))
-    return idx, per_block, per_chol, null_rows, sweep_rows, timeline
+    return idx, per_block, per_chol, null_rows, dup_rows, sweep_rows, timeline
 
 
 def fmt(x, e=True):
@@ -219,7 +266,7 @@ def main():
     with open(a.inp, "rb") as f:
         samples = pickle.load(f)
 
-    idx, per_block, per_chol, null_rows, sweep_rows, timeline = analyse(samples, a.steps)
+    idx, per_block, per_chol, null_rows, dup_rows, sweep_rows, timeline = analyse(samples, a.steps)
 
     L = []
     def w(s=""):
@@ -322,6 +369,25 @@ def main():
         w("no eigenvalues below tolerance at any sampled timestep")
     w("")
 
+    # ------------------------------------------- resolve the imu/clone split
+    w("-" * 100)
+    w("IS THE NULL SPACE THE IMU-POSE / NEWEST-CLONE DUPLICATION?")
+    w("-" * 100)
+    if dup_rows:
+        k = lambda f: np.mean([r[f] for r in dup_rows])
+        w(f"  IMU pose (quat,pos)      {k('imu_pose'):>8.2%} of null energy")
+        w(f"  IMU vel/gyro-bias/acc-b  {k('imu_vel_bias'):>8.2%}")
+        w(f"  newest clone             {k('newest_clone'):>8.2%}")
+        w(f"  all older clones         {k('older_clones'):>8.2%}")
+        w(f"  IMU pose + newest clone  {k('imu_pose') + k('newest_clone'):>8.2%}  <- together")
+        w(f"  <v_imu_pose, v_newest_clone> = {k('inner'):+.4f}   "
+          f"(-0.5 == exact anti-parallel pairing (u,-u)/sqrt(2) at unit norm)")
+        w(f"  newest clone age             = {k('newest_clone_age_s'):+.4f} s "
+          f"(0 == the clone IS the current IMU pose)")
+    else:
+        w("  no near-null directions, or no IMU/clone blocks present")
+    w("")
+
     # -------------------------------------------------- clone window sweep
     w("-" * 100)
     w("CLONE BLOCK CONDITIONING vs SLIDING-WINDOW LENGTH")
@@ -382,7 +448,7 @@ def main():
         f.write("\n".join(L) + "\n")
     with open(f"{a.outdir}/eigen_results.json", "w") as f:
         json.dump(dict(table=table, timeline=timeline, clone_sweep=sweep_out,
-                       null_energy=null_rows, rtol=RTOL,
+                       null_energy=null_rows, pose_duplication=dup_rows, rtol=RTOL,
                        n_samples=len(samples), n_analysed=len(idx)), f, indent=2)
 
     # ------------------------------------------------------------- plot
@@ -392,8 +458,19 @@ def main():
         import matplotlib.pyplot as plt
         t = [r["t"] - t0 for r in timeline]
         fig, ax = plt.subplots(3, 1, figsize=(11, 10), sharex=True)
-        ax[0].semilogy(t, [r["cond"] for r in timeline], "o-", color="#c0392b", label="cond (eig)")
-        ax[0].semilogy(t, [r["cond_svd"] for r in timeline], "s--", ms=3, color="#7f8c8d", label="cond (SVD)")
+        ce = [r["cond"] for r in timeline]
+        n_inf = sum(1 for c in ce if not np.isfinite(c))
+        if n_inf < len(ce):
+            ax[0].semilogy(t, ce, "o-", color="#c0392b", label="cond (eig)")
+        ax[0].semilogy(t, [r["cond_svd"] for r in timeline], "s--", ms=3,
+                       color="#7f8c8d", label="cond (SVD)")
+        if n_inf:
+            # A log axis cannot show inf; say so rather than leaving a legend
+            # entry for a line that was never drawn.
+            ax[0].text(0.015, 0.06,
+                       f"cond (eig) = inf at {n_inf}/{len(ce)} timesteps "
+                       f"(lambda_min <= 0), not plottable",
+                       transform=ax[0].transAxes, fontsize=8, color="#c0392b")
         ax[0].axhline(1e16, ls=":", c="k", lw=1, label="double precision ~1e16")
         ax[0].set_ylabel("condition number")
         ax[0].set_title("Full joint covariance conditioning over the run")

@@ -1,0 +1,113 @@
+====================================================================================================
+EIGENSPECTRUM DIAGNOSTIC -- OpenVINS joint covariance
+====================================================================================================
+samples in log      : 292 over 60.4 s
+timesteps analysed  : 25 (evenly spaced across the run)
+dim                 : 85..217
+SLAM features       : 1..45 (mean 4.9)
+|p|                 : 0.014..0.052 m (BOUNDED)
+rank tolerance      : lambda_max * 1e-12
+
+----------------------------------------------------------------------------------------------------
+PER-BLOCK SPECTRUM  (mean across sampled timesteps, [min..max] where it varies)
+----------------------------------------------------------------------------------------------------
+block                   dim   cond (eig)      rank  deficit   lambda_min   lambda_max  chol                  
+----------------------------------------------------------------------------------------------------
+FULL joint           88-205          inf    82-199        6   -3.666e-18    3.692e-02  0/25 ok               
+IMU (15)                 15    9.068e+05        15        0    3.211e-09    2.520e-03  25/25 ok, cond(C)~9.41e+02
+calib_dt (1)              1    1.000e+00         1        0    1.679e-08    1.679e-08  25/25 ok, cond(C)~1.00e+00
+clones only              66    6.341e+09        66        0    4.618e-12    2.772e-02  25/25 ok, cond(C)~7.92e+04
+SLAM feats only       6-123    8.996e+04     6-123        0    7.857e-08    1.063e-02  25/25 ok, cond(C)~2.12e+02
+IMU + feats          21-138    1.929e+06    21-138        0    3.208e-09    1.182e-02  25/25 ok, cond(C)~1.20e+03
+IMU + clones             81          inf     75-76      5-6   -3.025e-18    3.024e-02  3/25 ok, cond(C)~1.54e+10
+IMU+clones+feats     87-204          inf    81-199      5-6   -3.210e-18    3.692e-02  5/25 ok, cond(C)~2.65e+10
+FULL minus calib     87-204          inf    81-199      5-6   -3.210e-18    3.692e-02  5/25 ok, cond(C)~2.65e+10
+  * = condition number infinite (lambda_min <= 0) at some timesteps; mean over finite ones only
+
+----------------------------------------------------------------------------------------------------
+CHOLESKY FACTOR vs sqrt(matrix condition)   [square-root-form numerical argument]
+----------------------------------------------------------------------------------------------------
+block                      cond(A)    sqrt(cond A)    cond(C) meas     ratio
+IMU (15)                 9.068e+05       9.522e+02       9.409e+02      0.99
+calib_dt (1)             1.000e+00       1.000e+00       1.000e+00      1.00
+clones only              6.341e+09       7.963e+04       7.920e+04      0.99
+SLAM feats only          8.996e+04       2.999e+02       2.117e+02      0.71
+IMU + feats              1.929e+06       1.389e+03       1.200e+03      0.86
+
+----------------------------------------------------------------------------------------------------
+WHERE THE DEGENERACY LIVES -- energy of near-null eigenvectors per block type
+----------------------------------------------------------------------------------------------------
+near-null directions: 6.0 of 99 dims (mean over timesteps)
+block type               mean energy share         min         max
+calib_dt                             0.2%        0.0%        0.4%
+clone                               49.9%       49.8%       50.0%
+imu                                 49.9%       49.8%       50.0%
+slam_feature                         0.0%        0.0%        0.0%
+(shares sum to 1 across block types; eigenvectors are unit norm)
+
+----------------------------------------------------------------------------------------------------
+IS THE NULL SPACE THE IMU-POSE / NEWEST-CLONE DUPLICATION?
+----------------------------------------------------------------------------------------------------
+  IMU pose (quat,pos)        49.92% of null energy
+  IMU vel/gyro-bias/acc-b     0.00%
+  newest clone               49.92%
+  all older clones            0.00%
+  IMU pose + newest clone    99.85%  <- together
+  <v_imu_pose, v_newest_clone> = -0.4992   (-0.5 == exact anti-parallel pairing (u,-u)/sqrt(2) at unit norm)
+  newest clone age             = +0.0000 s (0 == the clone IS the current IMU pose)
+
+----------------------------------------------------------------------------------------------------
+CLONE BLOCK CONDITIONING vs SLIDING-WINDOW LENGTH
+----------------------------------------------------------------------------------------------------
+ #clones    dim   span_s          cond   rank  deficit   lambda_min   chol
+       2     12     0.06     6.146e+06     12        0    1.174e-09  25/25 
+       4     24     0.14     8.811e+08     24        0    1.492e-11  25/25 
+       6     36     0.22     2.469e+09     36        0    6.613e-12  25/25 
+       8     48     0.30     4.077e+09     48        0    5.255e-12  25/25 
+      11     66     0.43     6.341e+09     66        0    4.618e-12  25/25 
+
+----------------------------------------------------------------------------------------------------
+FULL-MATRIX CONDITIONING OVER THE RUN
+----------------------------------------------------------------------------------------------------
+  t_rel_s   dim  feats  clones         cond   rank  deficit   lambda_min
+      0.0   169     29      11          inf    163        6   -6.718e-18
+      2.5   205     41      11          inf    199        6   -2.743e-19
+      4.9   157     25      11          inf    151        6   -1.458e-18
+      7.5    91      3      11          inf     85        6   -4.672e-18
+     10.0    94      4      11          inf     88        6   -9.143e-19
+     12.5    88      2      11          inf     82        6   -6.481e-18
+     15.2    88      2      11          inf     82        6   -5.199e-18
+     17.7    88      2      11          inf     82        6   -2.507e-18
+     20.4    88      2      11          inf     82        6   -1.967e-18
+     22.9    88      2      11          inf     82        6   -4.162e-18
+     25.4    88      2      11          inf     82        6   -3.620e-18
+     28.1    88      2      11          inf     82        6   -3.928e-18
+     30.6    88      2      11          inf     82        6   -4.699e-18
+     33.0    88      2      11          inf     82        6   -1.290e-18
+     35.5    88      2      11          inf     82        6   -8.751e-19
+     38.0    88      2      11          inf     82        6   -1.958e-18
+     40.7    88      2      11          inf     82        6   -5.599e-18
+     43.2    88      2      11          inf     82        6   -4.972e-18
+     45.6    88      2      11          inf     82        6   -4.159e-18
+     48.0    88      2      11          inf     82        6   -5.891e-18
+     50.4    88      2      11          inf     82        6   -9.825e-18
+     52.9    88      2      11          inf     82        6   -1.893e-18
+     55.3    88      2      11          inf     82        6   -5.630e-18
+     57.8    88      2      11          inf     82        6   -1.007e-18
+     60.4    88      2      11          inf     82        6   -1.940e-18
+
+----------------------------------------------------------------------------------------------------
+LOG-DET NUMERICAL VIABILITY (statement of fact, not a recommendation)
+----------------------------------------------------------------------------------------------------
+A log-det is numerically meaningful only where the matrix is positive definite
+with a condition number well inside double precision (~1e16).
+  FULL joint           cond=        inf  chol 0/25  -> NO      not PD at all sampled timesteps
+  IMU (15)             cond=   9.07e+05  chol 25/25  -> OK      log-det well-posed
+  calib_dt (1)         cond=   1.00e+00  chol 25/25  -> OK      log-det well-posed
+  clones only          cond=   6.34e+09  chol 25/25  -> OK      log-det well-posed
+  SLAM feats only      cond=   9.00e+04  chol 25/25  -> OK      log-det well-posed
+  IMU + feats          cond=   1.93e+06  chol 25/25  -> OK      log-det well-posed
+  IMU + clones         cond=        inf  chol 3/25  -> NO      not PD at all sampled timesteps
+  IMU+clones+feats     cond=        inf  chol 5/25  -> NO      not PD at all sampled timesteps
+  FULL minus calib     cond=        inf  chol 5/25  -> NO      not PD at all sampled timesteps
+====================================================================================================
