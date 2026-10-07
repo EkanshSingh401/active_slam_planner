@@ -55,12 +55,14 @@ def generate_launch_description():
             'px4_publish', default_value='false',
             description='DANGER: actually publish VehicleOdometry to /fmu/in/...'),
 
+        # C++ D-optimal estimator from active_slam_information (PATCHES s61):
+        # scores the metric map, ranks by posterior log-det. Same node name and
+        # output topic as the Python placeholder it replaces
+        # (active_slam_planner/fisher_ig_estimator.py, kept for reference).
         Node(
-            package='active_slam_planner', executable='fisher_ig_estimator',
+            package='active_slam_information', executable='fisher_ig_estimator',
             name='fisher_ig_estimator', output='screen',
             parameters=[{
-                'esdf_topic': esdf_topic,
-                'odom_topic': odom_topic,
                 'rate': 2.0,
                 'num_candidates': 24,
                 'candidate_radius': 2.0,
